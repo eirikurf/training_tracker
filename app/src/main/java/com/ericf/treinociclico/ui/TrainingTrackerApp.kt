@@ -11,9 +11,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -23,25 +22,41 @@ import com.ericf.treinociclico.data.SamplePrograms
 import com.ericf.treinociclico.data.model.ExerciseTemplate
 import com.ericf.treinociclico.data.model.ScheduledWorkout
 import com.ericf.treinociclico.data.model.TrainingProgram
+import com.ericf.treinociclico.data.model.WorkoutDraft
 import com.ericf.treinociclico.data.model.WorkoutSessionLog
 import java.time.LocalDate
 
-private enum class RootTab(val label: String) {
+internal enum class RootTab(val label: String) {
     TODAY("Hoje"),
     PLAN("Plano"),
-    HISTORY("Historico"),
-    STATS("Estatisticas"),
+    HISTORY("Histórico"),
+    STATS("Estatísticas"),
 }
 
 @Composable
-fun TrainingTrackerApp() {
+fun TrainingTrackerApp(viewModel: TrainingViewModel) {
     val snackbarHostState = remember { SnackbarHostState() }
-    var program by remember { mutableStateOf(SamplePrograms.starterProgram) }
-    val logs = remember { mutableStateListOf<WorkoutSessionLog>().apply { addAll(SamplePrograms.demoLogs()) } }
-    var tab by rememberSaveable { mutableStateOf(RootTab.TODAY) }
-    var activeWorkout by remember { mutableStateOf<ScheduledWorkout?>(null) }
-    var workoutDraft by remember { mutableStateOf<WorkoutDraft?>(null) }
-    val scheduled = remember(program, logs.size) { SamplePrograms.computeScheduledWorkout(program, logs) }
+    val uiState by viewModel.uiState.collectAsState()
+    var tab by rememberSaveable { androidx.compose.runtime.mutableStateOf(RootTab.TODAY) }
+    var activeWorkout by remember { androidx.compose.runtime.mutableStateOf<ScheduledWorkout?>(null) }
+    if (!uiState.isLoaded || uiState.program == null) {
+        Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
+            HeroCard(
+                title = "Carregando",
+                subtitle = "Preparando seus dados",
+                body = "Abrindo programa, histórico e rascunhos salvos.",
+            )
+        }
+        return
+    }
+    val program = uiState.program!!
+    val logs = uiState.logs
+    val workoutDraft = uiState.workoutDraft
+    val scheduleSlots = remember(program) { SamplePrograms.buildScheduleSlots(program) }
+    val safeScheduleStartIndex = uiState.scheduleStartIndex.coerceIn(0, (scheduleSlots.size - 1).coerceAtLeast(0))
+    val scheduled = remember(program, logs.size, safeScheduleStartIndex) {
+        SamplePrograms.computeScheduledWorkout(program, logs, safeScheduleStartIndex)
+    }
     val completedToday = remember(logs.size) {
         logs.lastOrNull { !it.wasSkipped && it.date == LocalDate.now() }
     }
@@ -77,12 +92,12 @@ fun TrainingTrackerApp() {
                 scheduledWorkout = activeWorkout!!,
                 initialDraft = if (workoutDraft?.scheduledDayId == activeWorkout!!.day.id) workoutDraft else null,
                 onCancel = { draft ->
-                    workoutDraft = draft
+                    viewModel.updateWorkoutDraft(draft)
                     activeWorkout = null
                 },
+                onDraftChange = viewModel::updateWorkoutDraft,
                 onComplete = { session ->
-                    logs.add(session)
-                    workoutDraft = null
+                    viewModel.addSessionLog(session)
                     activeWorkout = null
                     tab = RootTab.TODAY
                 },
@@ -96,7 +111,7 @@ fun TrainingTrackerApp() {
                     hasDraft = workoutDraft?.scheduledDayId == scheduled.day.id,
                     onStart = { activeWorkout = scheduled },
                     onSkip = {
-                        logs.add(
+                        viewModel.addSessionLog(
                             WorkoutSessionLog(
                                 id = "skip-${scheduled.day.id}-${logs.size}",
                                 date = LocalDate.now(),
@@ -109,12 +124,15 @@ fun TrainingTrackerApp() {
                             ),
                         )
                     },
+                    onEditCompletedToday = viewModel::addSessionLog,
                 )
                 RootTab.PLAN -> PlanScreen(
                     contentPadding = padding,
                     program = program,
                     logs = logs,
-                    onProgramChange = { program = it },
+                    scheduleStartIndex = safeScheduleStartIndex,
+                    onProgramChange = viewModel::updateProgram,
+                    onScheduleStartChange = viewModel::updateScheduleStartIndex,
                 )
                 RootTab.HISTORY -> HistoryScreen(contentPadding = padding, logs = logs)
                 RootTab.STATS -> StatsScreen(contentPadding = padding, logs = logs)

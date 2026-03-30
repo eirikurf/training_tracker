@@ -82,8 +82,8 @@ data class LoggedSet(
     val setKind: SetKind,
     val exerciseName: String?,
     val setNumber: Int,
-    val reps: Int,
-    val loadKg: Double,
+    val reps: Int?,
+    val loadKg: Double?,
     val restSeconds: Int?,
     val rpe: Double?,
     val advancedTechnique: AdvancedTechnique?,
@@ -105,6 +105,14 @@ data class WorkoutSessionLog(
     val wasSkipped: Boolean,
     val generalWarmupCompleted: Boolean,
     val exerciseLogs: List<ExerciseLog>,
+)
+
+data class WorkoutDraft(
+    val scheduledDayId: String,
+    val currentStepIndex: Int,
+    val generalWarmupDone: Boolean,
+    val warmupDoneExerciseNames: Set<String>,
+    val loggedSets: List<LoggedSet>,
 )
 
 data class ScheduledWorkout(
