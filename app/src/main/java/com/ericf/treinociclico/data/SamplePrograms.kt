@@ -4962,25 +4962,34 @@ object SamplePrograms {
         ),
     )
 
-    fun computeScheduledWorkout(program: TrainingProgram, logs: List<WorkoutSessionLog>): ScheduledWorkout {
-        val completed = logs.size
-        val flattened = buildList {
-            program.blocks.forEach { block ->
-                repeat(block.repeatCount) { iteration ->
-                    block.days.forEachIndexed { dayIndex, day ->
-                        add(Triple(block, iteration + 1, dayIndex to day))
-                    }
+    fun buildScheduleSlots(program: TrainingProgram): List<ScheduledWorkout> = buildList {
+        program.blocks.forEach { block ->
+            repeat(block.repeatCount) { iteration ->
+                block.days.forEachIndexed { dayIndex, day ->
+                    add(
+                        ScheduledWorkout(
+                            block = block,
+                            blockIteration = iteration + 1,
+                            dayIndex = dayIndex,
+                            day = day,
+                            completedSessionsOverall = 0,
+                        ),
+                    )
                 }
             }
         }
-        val slot = flattened[completed % flattened.size]
-        return ScheduledWorkout(
-            block = slot.first,
-            blockIteration = slot.second,
-            dayIndex = slot.third.first,
-            day = slot.third.second,
-            completedSessionsOverall = completed,
-        )
+    }
+
+    fun computeScheduledWorkout(
+        program: TrainingProgram,
+        logs: List<WorkoutSessionLog>,
+        startIndex: Int = 0,
+    ): ScheduledWorkout {
+        val completed = logs.size
+        val slots = buildScheduleSlots(program)
+        val safeStartIndex = startIndex.coerceIn(0, (slots.size - 1).coerceAtLeast(0))
+        val slot = slots[(safeStartIndex + completed) % slots.size]
+        return slot.copy(completedSessionsOverall = completed)
     }
 
     fun demoLogs(): List<WorkoutSessionLog> {

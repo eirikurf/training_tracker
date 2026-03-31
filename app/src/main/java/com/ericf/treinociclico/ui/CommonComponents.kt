@@ -57,8 +57,8 @@ internal fun MetricCard(label: String, value: String, modifier: Modifier = Modif
 internal fun SessionOutlineCard(scheduled: ScheduledWorkout) {
     Card {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Roteiro da sessao", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Text("A divisao se repete por sessoes concluidas, nao por dias fixos da semana.")
+            Text("Roteiro da sessão", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text("A divisão se repete por sessões concluídas, não por dias fixos da semana.")
             scheduled.day.generalWarmup?.let {
                 AssistChip(onClick = {}, label = { Text(it.title) })
             }
@@ -74,7 +74,7 @@ internal fun SessionOutlineCard(scheduled: ScheduledWorkout) {
                                 AssistChip(onClick = {}, label = { Text(muscle.label) })
                             }
                         }
-                        Text("${exercise.workSets.size} series de trabalho planejadas", style = MaterialTheme.typography.bodySmall)
+                        Text("${exercise.workSets.size} séries de trabalho planejadas", style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }
